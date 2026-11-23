@@ -1,5 +1,6 @@
 #import <Cocoa/Cocoa.h>
 #import <IOKit/IOKitLib.h>
+#import <IOKit/hidsystem/IOHIDLib.h>
 #import <ServiceManagement/ServiceManagement.h>
 
 @interface Follow : NSObject <NSApplicationDelegate, NSMenuDelegate>
@@ -109,6 +110,20 @@ static void changed(void *context, io_iterator_t iterator) {
 - (void)privacy:(id)sender {
     [NSWorkspace.sharedWorkspace openURL:[NSURL URLWithString:@"x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"]];
 }
+/* The bundled mxswitch needs Input Monitoring to talk to the mouse, and macOS
+ * attributes its access to this app. Asking here shows the system prompt and
+ * adds the app to the Input Monitoring list; once denied, macOS won't prompt
+ * again, so fall back to opening the settings pane. */
+- (void)enableInputMonitoring:(id)sender {
+    if (IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeUnknown &&
+        IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)) {
+        _lastAction = @"Input Monitoring enabled";
+    } else {
+        _lastAction = @"Turn on Keyboard Mouse Switcher in Input Monitoring";
+        [self privacy:sender];
+    }
+    [self refresh];
+}
 - (void)menuNeedsUpdate:(NSMenu *)menu { [self refresh]; }
 - (NSMenuItem *)row:(NSString *)title action:(SEL)action {
     NSMenuItem *item = [_menu addItemWithTitle:title action:action keyEquivalent:@""];
@@ -133,7 +148,12 @@ static void changed(void *context, io_iterator_t iterator) {
     SMAppServiceStatus status = SMAppService.mainAppService.status;
     NSMenuItem *login = [self row:status == SMAppServiceStatusRequiresApproval ? @"Approve Open at Login…" : @"Open at Login" action:@selector(login:)];
     login.state = status == SMAppServiceStatusEnabled ? NSControlStateValueOn : NSControlStateValueOff;
-    [self row:@"Input Monitoring Settings…" action:@selector(privacy:)];
+    if (IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted) {
+        NSMenuItem *monitoring = [self row:@"Input Monitoring Enabled" action:@selector(privacy:)];
+        monitoring.state = NSControlStateValueOn;
+    } else {
+        [self row:@"Enable Input Monitoring…" action:@selector(enableInputMonitoring:)];
+    }
     [_menu addItem:NSMenuItem.separatorItem];
     NSMenuItem *quit = [self row:@"Quit Keyboard Mouse Switcher" action:@selector(terminate:)];
     quit.target = NSApp;

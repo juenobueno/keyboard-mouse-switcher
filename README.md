@@ -47,8 +47,17 @@ This produces `build/Keyboard Mouse Switcher.app` (ad-hoc signed) and a zipped c
 1. Pair the keyboard and the mouse with both Macs, using Easy-Switch channel 1 on one Mac and channel 2 on the other.
 2. Open **Keyboard Mouse Switcher**. A keyboard icon appears in the menu bar.
 3. In its menu, under **This Mac is**, choose the slot this Mac uses (Slot 1 or Slot 2).
-4. Choose **Input Monitoring Settings…** and enable **Keyboard Mouse Switcher** (add it with **+** if it isn't
-   listed). HID++ access to the mouse needs Input Monitoring.
+4. Choose **Enable Input Monitoring…** and click **Open System Settings** / allow when macOS asks. The menu item turns
+   into a checked **Input Monitoring Enabled** once access is granted.
+
+### Why Input Monitoring?
+
+Watching the keyboard connect and disconnect needs no permission; that's plain IOKit device notifications. The
+permission is for the *other* half: sending the switch command to the mouse. That means opening the mouse's HID
+device and writing a HID++ report to it. The MX Master 3 exposes its HID++ channel through a keyboard-class HID
+collection, and macOS only lets an app open keyboard-class devices with Input Monitoring. Without it the open fails
+with `kIOReturnNotPermitted`, and writing without opening fails with `kIOReturnNotOpen`. The app never reads your
+keystrokes.
 5. Optionally enable **Open at Login**.
 
 Now switch the keyboard to the other Mac: when it disconnects here, the mouse is sent to the other slot. The menu shows
