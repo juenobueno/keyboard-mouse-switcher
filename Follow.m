@@ -112,13 +112,24 @@ static void changed(void *context, io_iterator_t iterator) {
 }
 /* The bundled mxswitch needs Input Monitoring to talk to the mouse, and macOS
  * attributes its access to this app. Asking here shows the system prompt and
- * adds the app to the Input Monitoring list; once denied, macOS won't prompt
- * again, so fall back to opening the settings pane. */
+ * adds the app to the Input Monitoring list.
+ *
+ * macOS never prompts again once access is "denied" - and a rebuilt (re-signed)
+ * copy of the app inherits a stale entry that reads as denied even while the
+ * old toggle still looks on. So clear this app's own entry first, then ask. */
 - (void)enableInputMonitoring:(id)sender {
-    if (IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeUnknown &&
-        IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)) {
+    if (IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeDenied) {
+        NSTask *reset = [NSTask new];
+        reset.executableURL = [NSURL fileURLWithPath:@"/usr/bin/tccutil"];
+        reset.arguments = @[@"reset", @"ListenEvent", NSBundle.mainBundle.bundleIdentifier];
+        reset.standardOutput = NSFileHandle.fileHandleWithNullDevice;
+        reset.standardError = NSFileHandle.fileHandleWithNullDevice;
+        if ([reset launchAndReturnError:nil]) [reset waitUntilExit];
+    }
+    if (IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)) {
         _lastAction = @"Input Monitoring enabled";
     } else {
+        /* Prompting adds the app to the list switched off; the user turns it on. */
         _lastAction = @"Turn on Keyboard Mouse Switcher in Input Monitoring";
         [self privacy:sender];
     }

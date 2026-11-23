@@ -63,8 +63,17 @@ keystrokes.
 Now switch the keyboard to the other Mac: when it disconnects here, the mouse is sent to the other slot. The menu shows
 the last action, e.g. "Sent mouse to slot 2" or "Mouse unavailable · check Input Monitoring".
 
-Because the app is ad-hoc signed, Gatekeeper may block the first launch of a downloaded copy. Right-click the app →
-**Open**, or build it locally with `./build.sh`.
+The app is ad-hoc signed, not notarized. A copy you build yourself with `./build.sh` (after a command-line
+`git clone`) opens normally. A built copy that arrives by download, AirDrop or Messages is quarantined, and Gatekeeper
+blocks it with "Apple could not verify…". To open it anyway, go to **System Settings → Privacy & Security** and click
+**Open Anyway**, or clear the quarantine flag:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Keyboard Mouse Switcher.app"
+```
+
+If **Input Monitoring** stops working after a rebuild, choose **Enable Input Monitoring…** again: each ad-hoc build
+has a new signature, and the app clears its stale permission entry before asking.
 
 ## Using `mxswitch` on its own
 
